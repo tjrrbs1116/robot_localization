@@ -1830,7 +1830,7 @@ void RosFilter<T>::odometryCallback(
     twist_ptr->header.frame_id = msg->child_frame_id;
     twist_ptr->twist =
       msg->twist;   // Entire twist object, also copies covariance
-  RCLCPP_INFO(this->get_logger(),"odom callback twist linear.x is = %f" ,msg->twist); //my
+    //RCLCPP_INFO(this->get_logger(),"odom callback twist linear.x is = %f" ,msg->twist); //my
     twistCallback(twist_ptr, twist_callback_data, base_link_frame_id_);
   }
 
@@ -1846,7 +1846,8 @@ void RosFilter<T>::poseCallback(
   const bool imu_data)
 {
   const std::string & topic_name = callback_data.topic_name_;
-
+  // auto temp = msg->pose.pose.position.x;
+  // RCLCPP_INFO(this->get_logger(),"get_geometry message _amcl->ekf %f", temp); //my
   // If we've just reset the filter, then we want to ignore any messages
   // that arrive with an older timestamp
   if (last_set_pose_time_ >= msg->header.stamp) {
@@ -1998,7 +1999,7 @@ void RosFilter<T>::initialize()
 template<typename T>
 void RosFilter<T>::periodicUpdate()
 {
-    // RCLCPP_INFO(this->get_logger(),"rosfilter periodicupdate");
+  //RCLCPP_INFO(this->get_logger(),"rosfilter periodicupdate"); //my
 
   // Wait for the filter to be enabled
   if (!enabled_) {
@@ -2037,7 +2038,8 @@ void RosFilter<T>::periodicUpdate()
       filtered_position->header.frame_id;
     world_base_link_trans_msg_.child_frame_id =
       filtered_position->child_frame_id;
-
+    // RCLCPP_INFO(this->get_logger(),"header name is %s ",world_base_link_trans_msg_.header.frame_id.c_str()); //my
+    // RCLCPP_INFO(this->get_logger(),"child name is %s ",world_base_link_trans_msg_.child_frame_id.c_str());
     world_base_link_trans_msg_.transform.translation.x =
       filtered_position->pose.pose.position.x;
     world_base_link_trans_msg_.transform.translation.y =
@@ -2072,6 +2074,8 @@ void RosFilter<T>::periodicUpdate()
     if (publish_transform_ && !corrected_data) {
       if (filtered_position->header.frame_id == odom_frame_id_) {
         world_transform_broadcaster_->sendTransform(world_base_link_trans_msg_);
+      //  RCLCPP_INFO(this->get_logger(),"header name is %s ",world_base_link_trans_msg_.header.frame_id.c_str()); //my
+      //  RCLCPP_INFO(this->get_logger(),"child name is %s ",world_base_link_trans_msg_.child_frame_id.c_str());
       } else if (filtered_position->header.frame_id == map_frame_id_) {
         try {
           tf2::Transform world_base_link_trans;
@@ -2119,8 +2123,10 @@ void RosFilter<T>::periodicUpdate()
           map_odom_trans_msg.header.stamp =
             static_cast<rclcpp::Time>(filtered_position->header.stamp) + tf_time_offset_;
           map_odom_trans_msg.header.frame_id = map_frame_id_;
-          map_odom_trans_msg.child_frame_id = odom_frame_id_;
 
+          map_odom_trans_msg.child_frame_id = odom_frame_id_;
+          // RCLCPP_INFO(this->get_logger(),"header name is %s ",map_odom_trans_msg.header.frame_id.c_str()); //my
+          // RCLCPP_INFO(this->get_logger(),"child name is %s ",map_odom_trans_msg.child_frame_id.c_str());
           world_transform_broadcaster_->sendTransform(map_odom_trans_msg);
         } catch (...) {
           // ROS_ERROR_STREAM_DELAYED_THROTTLE(5.0, "Could not obtain
@@ -2224,9 +2230,11 @@ void RosFilter<T>::setPoseCallback(
 
   // Prepare the pose data (really just using this to transform it into the
   // target frame). Twist data is going to get zeroed out.
+  //predic -----------------------------------------------------------
   preparePose(
     msg, topic_name, world_frame_id_, false, false, false,
     update_vector, measurement, measurement_covariance);
+
 
   // For the state
   filter_.setState(measurement);

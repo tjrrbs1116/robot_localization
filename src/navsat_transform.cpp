@@ -174,7 +174,7 @@ NavSatTransform::NavSatTransform(const rclcpp::NodeOptions & options)
   subscriber_options.qos_overriding_options =
     rclcpp::QosOverridingOptions::with_default_policies();
   odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-    "odometry/filtered", custom_qos, std::bind(
+    "odom", custom_qos, std::bind(
       &NavSatTransform::odomCallback, this, _1), subscriber_options);
 
   gps_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
@@ -182,8 +182,9 @@ NavSatTransform::NavSatTransform(const rclcpp::NodeOptions & options)
     subscriber_options);
 
   if (!use_odometry_yaw_ && !use_manual_datum_) {
+    RCLCPP_INFO(this->get_logger(),"imu _ yes!");
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-      "imu", custom_qos, std::bind(&NavSatTransform::imuCallback, this, _1), subscriber_options);
+      "imu/data", custom_qos, std::bind(&NavSatTransform::imuCallback, this, _1), subscriber_options);
   }
 
   rclcpp::PublisherOptions publisher_options;
@@ -217,6 +218,7 @@ void NavSatTransform::transformCallback()
     computeTransform();
 
     if (transform_good_ && !use_odometry_yaw_ && !use_manual_datum_) {
+      RCLCPP_INFO(this->get_logger(),"imu_reset!");
       // Once we have the transform, we don't need the IMU
       imu_sub_.reset();
     }
@@ -284,8 +286,12 @@ void NavSatTransform::computeTransform()
      *      difference we need to add meridian convergence angle when using UTM.
      *      This value will be 0.0 when use_local_cartesian is TRUE.
      */
+
+
     imu_yaw += (magnetic_declination_ + yaw_offset_ +
       utm_meridian_convergence_);
+
+    // RCLCPP_INFO(this->get_logger(),"now imu_yaw is %f",imu_yaw); //my
 
     RCLCPP_INFO(
       this->get_logger(),
@@ -322,11 +328,14 @@ void NavSatTransform::computeTransform()
       cartesian_pose_with_orientation.inverse());
 
     cartesian_world_trans_inverse_ = cartesian_world_transform_.inverse();
-
+    RCLCPP_INFO(this->get_logger(),"transform_good yes!");
     transform_good_ = true;
 
     // Send out the (static) UTM transform in case anyone else would like to use
     // it.
+
+    // if use_local_cartesian_ true -> cartesian_frame_id = local_enu
+    // if use as_parent_frame_ true ->
     if (broadcast_cartesian_transform_) {
       geometry_msgs::msg::TransformStamped cartesian_transform_stamped;
       cartesian_transform_stamped.header.stamp = this->now();
@@ -646,6 +655,9 @@ void NavSatTransform::gpsFixCallback(
 
 void NavSatTransform::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
+
+  //RCLCPP_INFO(this->get_logger(),"imu call back "); //my
+
   // We need the baseLinkFrameId_ from the odometry message, so
   // we need to wait until we receive it.
   if (has_transform_odom_) {
@@ -775,7 +787,7 @@ bool NavSatTransform::prepareGpsOdometry(nav_msgs::msg::Odometry * gps_odom)
 
   if (transform_good_ && gps_updated_ && odom_updated_) {
     *gps_odom = cartesianToMap(latest_cartesian_pose_);
-
+    // RCLCPP_INFO(this->get_logger(),"all good");
     tf2::Transform transformed_cartesian_gps;
     tf2::fromMsg(gps_odom->pose.pose, transformed_cartesian_gps);
 
